@@ -4,9 +4,9 @@ from unittest.mock import Mock
 
 import requests
 
-from invoice_demo import guarded_tool
+from invoice_demo import tool
 from invoice_demo.eval_cases import CASES
-from invoice_demo.guarded_tool import SessionIdentity, dispatch_tool, get_open_invoice
+from invoice_demo.tool import SessionIdentity, dispatch_tool, get_open_invoice
 from invoice_demo.mock_api import (
     BAD_JSON_PHONE,
     BAD_SHAPE_PHONE,
@@ -21,7 +21,7 @@ from invoice_demo.mock_api import (
 )
 
 
-def test_guarded_tool_distinguishes_invoice_empty_and_failure(billing_url):
+def test_tool_distinguishes_invoice_empty_and_failure(billing_url):
     assert get_open_invoice(SessionIdentity(True, PRIMARY_PHONE), billing_url=billing_url) == {
         "ok": True,
         "amount": "42.50",
@@ -49,7 +49,7 @@ def test_model_arguments_cannot_choose_an_account_or_supply_a_phone(monkeypatch)
     def must_not_query(*args, **kwargs):
         raise AssertionError("unauthorized dispatch must not call billing API")
 
-    monkeypatch.setattr(guarded_tool.requests, "get", must_not_query)
+    monkeypatch.setattr(tool.requests, "get", must_not_query)
     assert dispatch_tool(
         "get_open_invoice",
         {"phone": OTHER_PHONE},
@@ -109,7 +109,7 @@ def test_invalid_timeout_budgets_fail_closed_without_request(monkeypatch):
     def must_not_query(*args, **kwargs):
         raise AssertionError("invalid timeout must not call billing API")
 
-    monkeypatch.setattr(guarded_tool.requests, "get", must_not_query)
+    monkeypatch.setattr(tool.requests, "get", must_not_query)
     for timeout in (0, -1, float("inf"), float("nan"), True):
         assert get_open_invoice(
             SessionIdentity(True, PRIMARY_PHONE), billing_url="http://mock", timeout=timeout

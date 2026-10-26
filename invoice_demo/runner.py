@@ -13,7 +13,7 @@ from typing import Any, Protocol
 import requests
 
 from invoice_demo.eval_cases import CASES, PROMPTS, EvalCase
-from invoice_demo.guarded_tool import TOOL_SPEC, dispatch_tool
+from invoice_demo.tool import TOOL_SPEC, dispatch_tool
 
 MAX_TOOL_CALLS = 3
 DEFAULT_MODEL_TIMEOUT_SECONDS = 20.0

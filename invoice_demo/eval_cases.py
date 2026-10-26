@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from invoice_demo.guarded_tool import SessionIdentity
+from invoice_demo.tool import SessionIdentity
 from invoice_demo.mock_api import (
     BAD_JSON_PHONE,
     EMPTY_PHONE,

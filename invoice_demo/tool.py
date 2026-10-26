@@ -1,4 +1,4 @@
-"""Identity-bound, fail-closed invoice lookup tool."""
+"""Identity-bound, fail-closed invoice lookup implementation."""
 
 from __future__ import annotations
 

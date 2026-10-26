@@ -72,7 +72,7 @@ a small set of exact answer forms; other wording can fail even if it is correct.
 | File                                                         | Purpose                                                                                                                  |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | [invoice_demo/mock_api.py](invoice_demo/mock_api.py)         | FastAPI billing mock: `/health`, `/invoices`, synthetic phone numbers, and failure fixtures.                             |
-| [invoice_demo/guarded_tool.py](invoice_demo/guarded_tool.py) | Session identity, no-argument tool schema, dispatch checks, HTTP lookup, and invoice validation.                         |
+| [invoice_demo/tool.py](invoice_demo/tool.py) | Session identity, no-argument tool schema, dispatch checks, HTTP lookup, and invoice validation.                         |
 | [invoice_demo/runner.py](invoice_demo/runner.py)             | Scripted and HTTP model clients, bounded tool loop, scoring, timing, JSON reports, and CLI.                              |
 | [invoice_demo/eval_cases.py](invoice_demo/eval_cases.py)     | Ten shared scenarios, expected outcomes, answer rubrics, and baseline/tuned prompts.                                     |
 | [tests/conftest.py](tests/conftest.py)                       | Starts and stops a local billing server for tests.                                                                       |
