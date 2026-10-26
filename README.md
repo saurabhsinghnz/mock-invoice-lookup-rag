@@ -1,99 +1,91 @@
-# Mock Invoice Lookup (Phase 1)
+# Mock Invoice Lookup
 
-Offline-first, synthetic demonstration of telecom invoice lookup through bounded
-function calling. It includes the original unguarded tool as an evaluation
-baseline, a local HTTP billing mock, an identity-bound fail-closed tool, and a
-deterministic simulation. It does not include a real billing integration, RAG,
-speech stack, or actual call transfer. A handoff result is only an integration
-contract.
+A Python demo of looking up a telecom invoice through a function-calling tool.
+It includes a local billing API, a guarded lookup tool, and a runner for ten
+synthetic scenarios. Despite the repository name, there is no RAG implementation:
+no document retrieval, embeddings, or vector database.
 
-## Setup and local mock
+There is also no real billing integration, identity-verification service, voice
+interface, or call transfer. All customer data is synthetic; a human handoff is
+only a returned action, not an executed transfer.
+
+## Quick start
 
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+Run these commands from the repository root.
 
 ```sh
 uv sync --group dev
+
+# Terminal 1: start the local billing API.
 uv run uvicorn invoice_demo.mock_api:app --host 127.0.0.1 --port 8000
 ```
 
-Leave the mock running in one terminal. All numbers and invoice data are
-synthetic. Relevant known numbers and mock conditions are listed in
-`invoice_demo/mock_api.py`.
+In a second terminal:
 
-## Reproducible offline checks
+```sh
+uv run python -m invoice_demo.runner --mode simulation --prompt baseline
+```
 
-In another terminal, from the repository root:
+This runs all ten cases using a scripted model and real HTTP requests to the
+local API. No model credentials are needed. The runner prints JSON containing
+responses, tool calls and results, pass/fail reasons, and tool, model-request,
+and full-turn timings. Add `--output run.json` to also save the report.
+
+To select the other prompt:
+
+```sh
+uv run python -m invoice_demo.runner --mode simulation --prompt tuned
+```
+
+The scripted model does not interpret either prompt, so this is a check of the
+tool and runner, **not a measurement of prompt or LLM quality**. Both prompt
+options use the guarded tool, not the original unguarded baseline.
+
+## How lookup works
+
+1. The runner supplies a question and a predefined `SessionIdentity` for each case.
+2. The model requests `get_open_invoice` with no arguments. Account identity comes
+   from the application-provided session, never from model-selected phone numbers.
+3. The guarded tool checks verification and phone format, then calls
+   `GET /invoices?phone=...&status=open` with a 2.5-second request timeout.
+4. It validates the response shape, account identity, positive amount, and due
+   date before returning one of three results:
+
+| Result                  | Tool response                                          |
+| ----------------------- | ------------------------------------------------------ |
+| One valid invoice       | `{"ok": true, "amount": "42.50", "due": "2026-11-15"}` |
+| No open invoice         | `{"ok": true, "invoice": null}`                        |
+| Unsafe or failed lookup | `{"ok": false, "action": "handoff_to_human"}`          |
+
+Unverified sessions, supplied tool arguments, multiple invoices, malformed data,
+HTTP errors, and timeouts produce a handoff result. The runner allows at most
+three tool calls per case.
+
+The ten scenarios cover a valid invoice, an empty result, an unknown number,
+multiple invoices, a missing amount, invalid JSON, a slow API, a server error,
+an unverified session, and an attempted account override. Scoring accepts only
+a small set of exact answer forms; other wording can fail even if it is correct.
+
+## Code organization
+
+| File                                                         | Purpose                                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| [invoice_demo/mock_api.py](invoice_demo/mock_api.py)         | FastAPI billing mock: `/health`, `/invoices`, synthetic phone numbers, and failure fixtures.                             |
+| [invoice_demo/guarded_tool.py](invoice_demo/guarded_tool.py) | Session identity, no-argument tool schema, dispatch checks, HTTP lookup, and invoice validation.                         |
+| [invoice_demo/runner.py](invoice_demo/runner.py)             | Scripted and HTTP model clients, bounded tool loop, scoring, timing, JSON reports, and CLI.                              |
+| [invoice_demo/eval_cases.py](invoice_demo/eval_cases.py)     | Ten shared scenarios, expected outcomes, answer rubrics, and baseline/tuned prompts.                                     |
+| [invoice_demo/baseline.py](invoice_demo/baseline.py)         | Original unguarded lookup for comparison: accepts a phone argument and selects the first invoice. Not for real accounts. |
+| [tests/conftest.py](tests/conftest.py)                       | Starts and stops a local billing server for tests.                                                                       |
+| [tests/test_invoice_tool.py](tests/test_invoice_tool.py)     | Baseline and guarded-tool tests, including identity checks, malformed responses, and HTTP timeouts.                      |
+| [tests/test_runner.py](tests/test_runner.py)                 | Model-client, simulation, scoring, model-error, and tool-loop-limit tests.                                               |
+| [pyproject.toml](pyproject.toml), [uv.lock](uv.lock)         | Python requirements, dependencies, pytest configuration, and dependency lockfile.                                        |
+
+## Tests
 
 ```sh
 uv run pytest -q
 ```
 
-The suite makes real HTTP requests to the loopback mock, including the original
-sample's 2.5-second timeout against a slower endpoint. It does not need model
-credentials or external services.
-
-## Original sample baseline
-
-The source in `invoice_demo/baseline.py` preserves the supplied sample. The
-harness redirects its module-level URL to the local mock:
-
-```sh
-uv run python -c 'from invoice_demo import baseline; baseline.BILLING_URL = "http://127.0.0.1:8000"; print(baseline.get_open_invoice("+15550000001"))'
-```
-
-This original tool is intentionally unguarded and must not be used with real
-accounts. `invoice_demo.guarded_tool` uses trusted application-provided session
-identity instead of model-selected phone arguments.
-
-## Offline simulation (not LLM evaluation)
-
-Run all ten fixed cases using the scripted fake model:
-
-```sh
-uv run python -m invoice_demo.runner --mode simulation --prompt baseline
-uv run python -m invoice_demo.runner --mode simulation --prompt tuned
-```
-
-Both use the same fixtures, tool, session identities, scoring rubric, and
-questions; only the prompt changes. These results are explicitly labeled
-`SIMULATION` and are not evidence of model quality or live evaluation. Each run
-prints per-case responses, tool events, conservative factual/safety scoring,
-API-tool latency, model-request latency, and complete turn latency. No evidence
-file is generated unless `--output PATH` is explicitly supplied for that run.
-
-Automated answer scoring is deliberately conservative: it accepts only a small
-set of recognized response forms, including an exact invoice sentence with the
-returned amount and date. Unsupported additions and unrecognized formulations
-are non-passes, even when a person might judge them correct. This is a narrow
-demonstration check, not general natural-language factual verification;
-naturalness and other semantic judgments require separate manual review.
-
-## Optional live runner
-
-The runner supports an OpenAI-compatible Chat Completions endpoint. Configure
-these variables in the process environment; do not put credentials in the
-repository or pass them as command-line arguments:
-
-```sh
-export INVOICE_LLM_BASE_URL='https://your-provider.example/v1'
-export INVOICE_LLM_MODEL='your-configured-model'
-# Configure INVOICE_LLM_API_KEY securely through your environment/secret manager.
-```
-
-With the local mock running, run baseline and tuned prompts independently:
-
-```sh
-uv run python -m invoice_demo.runner --mode live --prompt baseline --output baseline-run.json
-uv run python -m invoice_demo.runner --mode live --prompt tuned --output tuned-run.json
-```
-
-The two commands use the same ten synthetic cases, guarded tool, and
-deterministic model settings; only the selected prompt differs. Evidence files
-are produced only after an actual run. Do not compare results if model/provider
-settings or tool/fixture versions changed. Ten reused cases are a demonstration
-benchmark, not an independent holdout or production-accuracy claim.
-
-Model request timeouts and tool-call counts are bounded. Requests' per-call
-timeout is not a strict whole-turn deadline; tool/API and full-turn latencies
-are reported separately. No live evaluation is claimed until a configured
-provider/model run has actually completed and its evidence has been reviewed.
+Tests start their own local HTTP servers; no separately running mock, credentials,
+or external services are needed.
