@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import requests
 
-from invoice_demo import baseline, guarded_tool
+from invoice_demo import guarded_tool
 from invoice_demo.eval_cases import CASES
 from invoice_demo.guarded_tool import SessionIdentity, dispatch_tool, get_open_invoice
 from invoice_demo.mock_api import (
@@ -19,20 +19,6 @@ from invoice_demo.mock_api import (
     PRIMARY_PHONE,
     STALL_PHONE,
 )
-
-
-def test_original_sample_runs_against_real_local_http_mock(monkeypatch, billing_url):
-    monkeypatch.setattr(baseline, "BILLING_URL", billing_url)
-    assert baseline.get_open_invoice(PRIMARY_PHONE) == {
-        "ok": True,
-        "amount": "42.50",
-        "due": "2026-11-15",
-    }
-    assert baseline.get_open_invoice(EMPTY_PHONE) == {"ok": True, "invoice": None}
-    assert baseline.get_open_invoice(ERROR_PHONE) == {
-        "ok": False,
-        "action": "handoff_to_human",
-    }
 
 
 def test_guarded_tool_distinguishes_invoice_empty_and_failure(billing_url):
@@ -134,14 +120,6 @@ def test_timeout_budget_is_applied_to_real_http_request(billing_url):
     result = get_open_invoice(
         SessionIdentity(True, STALL_PHONE), billing_url=billing_url, timeout=0.1
     )
-    assert result == {"ok": False, "action": "handoff_to_human"}
-
-
-def test_original_sample_timeout_against_stall_exceeding_its_2_5_seconds(
-    monkeypatch, billing_url
-):
-    monkeypatch.setattr(baseline, "BILLING_URL", billing_url)
-    result = baseline.get_open_invoice(STALL_PHONE)
     assert result == {"ok": False, "action": "handoff_to_human"}
 
 

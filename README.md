@@ -40,7 +40,7 @@ uv run python -m invoice_demo.runner --mode simulation --prompt tuned
 
 The scripted model does not interpret either prompt, so this is a check of the
 tool and runner, **not a measurement of prompt or LLM quality**. Both prompt
-options use the guarded tool, not the original unguarded baseline.
+options use the same guarded tool; `baseline` and `tuned` select only the prompt.
 
 ## How lookup works
 
@@ -75,9 +75,8 @@ a small set of exact answer forms; other wording can fail even if it is correct.
 | [invoice_demo/guarded_tool.py](invoice_demo/guarded_tool.py) | Session identity, no-argument tool schema, dispatch checks, HTTP lookup, and invoice validation.                         |
 | [invoice_demo/runner.py](invoice_demo/runner.py)             | Scripted and HTTP model clients, bounded tool loop, scoring, timing, JSON reports, and CLI.                              |
 | [invoice_demo/eval_cases.py](invoice_demo/eval_cases.py)     | Ten shared scenarios, expected outcomes, answer rubrics, and baseline/tuned prompts.                                     |
-| [invoice_demo/baseline.py](invoice_demo/baseline.py)         | Original unguarded lookup for comparison: accepts a phone argument and selects the first invoice. Not for real accounts. |
 | [tests/conftest.py](tests/conftest.py)                       | Starts and stops a local billing server for tests.                                                                       |
-| [tests/test_invoice_tool.py](tests/test_invoice_tool.py)     | Baseline and guarded-tool tests, including identity checks, malformed responses, and HTTP timeouts.                      |
+| [tests/test_invoice_tool.py](tests/test_invoice_tool.py)     | Guarded-tool tests, including identity checks, malformed responses, and HTTP timeouts.                                   |
 | [tests/test_runner.py](tests/test_runner.py)                 | Model-client, simulation, scoring, model-error, and tool-loop-limit tests.                                               |
 | [pyproject.toml](pyproject.toml), [uv.lock](uv.lock)         | Python requirements, dependencies, pytest configuration, and dependency lockfile.                                        |
 
